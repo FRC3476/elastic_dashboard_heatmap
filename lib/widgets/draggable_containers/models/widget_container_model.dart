@@ -227,15 +227,15 @@ abstract class WidgetContainerModel extends ChangeNotifier {
       displayRect.top,
       newGridSize,
     );
-
+    // TODO: do the clamps really do anything?
     double newWidth = DraggableWidgetContainer.snapToGrid(
       displayRect.width,
       newGridSize,
-    ).clamp(minWidth, double.infinity);
+    );//.clamp(minWidth, double.infinity);
     double newHeight = DraggableWidgetContainer.snapToGrid(
       displayRect.height,
       newGridSize,
-    ).clamp(minHeight, double.infinity);
+    );//.clamp(minHeight, double.infinity);
 
     displayRect = Rect.fromLTWH(newX, newY, newWidth, newHeight);
     draggingRect = displayRect;
