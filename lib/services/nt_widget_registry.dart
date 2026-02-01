@@ -1,3 +1,4 @@
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/heatmap.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -401,6 +402,12 @@ class NTWidgetRegistry {
     registerWithoutModel(
       name: LargeTextDisplay.widgetType,
       widget: LargeTextDisplay.new,
+      minHeight: _normalSize * 0.8,
+    );
+
+    registerWithoutModel(
+      name: Heatmap.widgetType,
+      widget: Heatmap.new,
       minHeight: _normalSize * 0.8,
     );
 

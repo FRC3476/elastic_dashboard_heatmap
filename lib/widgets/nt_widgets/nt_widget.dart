@@ -1,3 +1,4 @@
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/heatmap.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -215,11 +216,12 @@ class SingleTopicNTWidgetModel extends NTWidgetModel {
     if (dataType!.isViewable) {
       availableTypes.addAll([
         TextDisplay.widgetType,
-        LargeTextDisplay.widgetType,
+        LargeTextDisplay.widgetType
       ]);
     }
 
     availableTypes.add(type);
+    availableTypes.add(Heatmap.widgetType);
 
     return availableTypes.toSet().toList();
   }
