@@ -139,7 +139,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                     child: SingleChildScrollView(
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
-                          maxHeight: kIsWeb ? 360 : 415,
+                          maxHeight: kIsWeb ? 360+56 : 415+56,
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.start,
@@ -159,7 +159,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                     padding: const EdgeInsets.symmetric(horizontal: 4.0),
                     child: SingleChildScrollView(
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 205),
+                        constraints: const BoxConstraints(maxHeight: 205+18),
                         child: Column(children: [..._advancedSettings()]),
                       ),
                     ),
@@ -373,9 +373,41 @@ class _SettingsDialogState extends State<SettingsDialog> {
             initialText:
                 widget.preferences.getInt(PrefKeys.gridSize)?.toString() ??
                 Defaults.gridSize.toString(),
-            label: 'Grid Size',
+            label: 'Grid Size (px)',
             onSubmit: (value) async {
               await widget.onGridSizeChanged?.call(value);
+              setState(() {});
+            },
+            formatter: FilteringTextInputFormatter.digitsOnly,
+          ),
+        ),
+      ],
+    ),
+    const SizedBox(height: 5),
+    Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        Flexible(
+          child: DialogTextInput(
+            initialText:
+                ((MediaQuery.of(context).size.height - 100) / int.parse(widget.preferences.getInt(PrefKeys.gridSize)?.toString() ??
+                Defaults.gridSize.toString())).floor().toString(),
+            label: 'Fit Rows',
+            onSubmit: (value) async {
+              await widget.onGridSizeChanged?.call(((MediaQuery.of(context).size.height - 100) / double.parse(value)).floor().toString());
+              setState(() {});
+            },
+            formatter: FilteringTextInputFormatter.digitsOnly,
+          ),
+        ),
+        Flexible(
+          child: DialogTextInput(
+            initialText:
+                (MediaQuery.of(context).size.width / int.parse(widget.preferences.getInt(PrefKeys.gridSize)?.toString() ??
+                Defaults.gridSize.toString())).floor().toString(),
+            label: 'Fit Columns',
+            onSubmit: (value) async {
+              await widget.onGridSizeChanged?.call((MediaQuery.of(context).size.width / double.parse(value)).floor().toString());
               setState(() {});
             },
             formatter: FilteringTextInputFormatter.digitsOnly,

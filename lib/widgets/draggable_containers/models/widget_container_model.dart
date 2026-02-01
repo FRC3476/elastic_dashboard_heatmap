@@ -219,14 +219,28 @@ abstract class WidgetContainerModel extends ChangeNotifier {
 
   @mustCallSuper
   void updateGridSize(int oldGridSize, int newGridSize) {
-    double newX = DraggableWidgetContainer.snapToGrid(
-      displayRect.left,
+    double newSizeRatio = newGridSize / oldGridSize;
+    double newX = displayRect.left * newSizeRatio;
+    double newY = displayRect.top * newSizeRatio;
+    newX = DraggableWidgetContainer.snapToGrid(
+      newX,
       newGridSize,
     );
-    double newY = DraggableWidgetContainer.snapToGrid(
-      displayRect.top,
+    newY = DraggableWidgetContainer.snapToGrid(
+      newY,
       newGridSize,
     );
+    double newWidth = displayRect.width * newSizeRatio;
+    double newHeight = displayRect.height * newSizeRatio;
+    newWidth = DraggableWidgetContainer.snapToGrid(
+      newWidth,
+      newGridSize,
+    );
+    newHeight = DraggableWidgetContainer.snapToGrid(
+      newHeight,
+      newGridSize,
+    );
+    /*
     // TODO: do the clamps really do anything?
     double newWidth = DraggableWidgetContainer.snapToGrid(
       displayRect.width,
@@ -235,7 +249,7 @@ abstract class WidgetContainerModel extends ChangeNotifier {
     double newHeight = DraggableWidgetContainer.snapToGrid(
       displayRect.height,
       newGridSize,
-    );//.clamp(minHeight, double.infinity);
+    );//.clamp(minHeight, double.infinity);*/
 
     displayRect = Rect.fromLTWH(newX, newY, newWidth, newHeight);
     draggingRect = displayRect;
