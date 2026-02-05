@@ -34,11 +34,12 @@ class Heatmap extends NTWidget {
         }
 
         int rows = 40;
-        int columns = 60;
-        int neighborRadius = 4;
+        int columns = 80;
+        int neighborRadius = 6;
+
+        double maxDensity = 0;
 
         List<List> fieldBins = List<List>.generate(columns, (i) => List<double>.generate(rows, (j) => 0, growable: false), growable: false);
-
 
         for (List objPose in objPosePairs) {
           int xIndex = ((columns * objPose[0]) / fieldWidth).floor().clamp(0, columns-1);
@@ -53,6 +54,9 @@ class Heatmap extends NTWidget {
               }
               //fieldBins[xIndex + i][yIndex + j] += 1/(1 + i.abs() + j.abs());
               fieldBins[xIndex + i][yIndex + j] += 1/(1 + i.abs() + j.abs());
+              if (fieldBins[xIndex + i][yIndex + j] > maxDensity) {
+                maxDensity = fieldBins[xIndex + i][yIndex + j];
+              }
             }
           }
         }
@@ -65,13 +69,17 @@ class Heatmap extends NTWidget {
                   left: lo + (x * fieldWidth / columns),
                   bottom: bo + (y * fieldHeight / rows),
                   child: Container(
-                    width: fieldWidth / columns,
-                    height: fieldHeight / rows,
+                    width: fieldWidth / columns + 1,
+                    height: fieldHeight / rows + 1,
                     decoration: BoxDecoration(
-                      color: Color.fromARGB((density*density * 10).floor().clamp(0, 255), 255, 255, (100 + ((density*density * 10) - 255).clamp(0, 255)).floor().clamp(0, 255)),
-                      //borderRadius: BorderRadius.circular(25),
+                      color: HSVColor.fromAHSV(
+                          ((density / maxDensity) * 2).clamp(0, 1.0),
+                          (1.0 - (density / maxDensity).clamp(0.0, 1.0)) * 240.0, 
+                          1.0,
+                          1.0
+                        ).toColor(),
+                      ),
                     ),
-                  ),
                 ),
               );
             }
@@ -110,6 +118,7 @@ class Heatmap extends NTWidget {
                         'Rebuilt (No Fuel)',
                       )?.fieldImage,
                     ),
+                    ...containerList,
                     Positioned(
                       left: lo + (data[0] * ftToPixels) - 80,
                       bottom: bo + (data[1] * ftToPixels) - 80,
@@ -132,7 +141,6 @@ class Heatmap extends NTWidget {
                         ),
                       ),
                     ),
-                    ...containerList,
                   ],
                 ),
               ),
