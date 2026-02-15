@@ -152,7 +152,7 @@ jobs:
           #   wpilib: true
 
     name: "Build - ${{ matrix.platform-name }}"
-    needs: [formatting-analysis, test]
+    needs: [formatting-analysis]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -301,7 +301,7 @@ jobs:
   upload-release:
     name: Upload to Release
     runs-on: ubuntu-22.04
-    needs: [build, build-web]
+    needs: [build]
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload-release }}
     steps:
       - run: mkdir -p artifacts
