@@ -171,6 +171,7 @@ class WidgetContainer extends StatelessWidget {
     this.horizontalPadding = 7.5,
     this.verticalPadding = 7.5,
     this.cornerRadius = Defaults.cornerRadius,
+    this.showTitle = true
   });
 
   final double opacity;
@@ -181,6 +182,7 @@ class WidgetContainer extends StatelessWidget {
   final double horizontalPadding;
   final double verticalPadding;
   final double cornerRadius;
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -220,6 +222,7 @@ class WidgetContainer extends StatelessWidget {
                         color: theme.colorScheme.primaryContainer,
                       ),
                       width: constraints.maxWidth,
+                      height: showTitle ? null : 0,
                       alignment: Alignment.center,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(

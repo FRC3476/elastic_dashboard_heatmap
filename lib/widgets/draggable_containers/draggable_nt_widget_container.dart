@@ -8,17 +8,24 @@ import 'models/nt_widget_container_model.dart';
 class DraggableNTWidgetContainer extends DraggableWidgetContainer {
   const DraggableNTWidgetContainer({super.key, super.updateFunctions})
     : super();
+  
+  static const noTitleBarWidgets = <String>[
+    'Toggle Button',
+    'heatmap'
+  ];
 
   @override
   Widget build(BuildContext context) {
     NTWidgetContainerModel model = context.watch<NTWidgetContainerModel>();
+
+    bool showTitleBar = noTitleBarWidgets.contains(model.childModel.type);
 
     return Stack(
       children: [
         Positioned(
           left: model.displayRect.left,
           top: model.displayRect.top,
-          child: model.getWidgetContainer(context),
+          child: model.getWidgetContainer(context, !showTitleBar),
         ),
         ...super.getStackChildren(model),
       ],

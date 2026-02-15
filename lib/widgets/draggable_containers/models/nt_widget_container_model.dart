@@ -323,13 +323,14 @@ class NTWidgetContainerModel extends WidgetContainerModel {
       );
 
   @override
-  WidgetContainer getWidgetContainer(BuildContext context) => WidgetContainer(
+  WidgetContainer getWidgetContainer(BuildContext context, [bool? showTitle]) => WidgetContainer(
     title: title,
     width: displayRect.width,
     height: displayRect.height,
     cornerRadius:
         preferences.getDouble(PrefKeys.cornerRadius) ?? Defaults.cornerRadius,
     opacity: (previewVisible) ? 0.25 : 1.00,
+    showTitle: showTitle ?? true,
     child: Opacity(
       opacity: (enabled) ? 1.00 : 0.50,
       child: AbsorbPointer(

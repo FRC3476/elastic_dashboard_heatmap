@@ -49,8 +49,8 @@ class ToggleButton extends NTWidget {
           },
           child: Padding(
             padding: EdgeInsets.symmetric(
-              horizontal: buttonSize.width * 0.01,
-              vertical: buttonSize.height * 0.01,
+              horizontal: buttonSize.width * 0.001,
+              vertical: buttonSize.height * 0.001,
             ),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 10),
