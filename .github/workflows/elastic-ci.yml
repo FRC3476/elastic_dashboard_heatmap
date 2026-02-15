@@ -27,35 +27,35 @@ permissions:
   pages: write
 
 jobs:
-  # formatting-analysis:
-  #   name: "Check Formatting & Analyze"
-  #   runs-on: ubuntu-22.04
+  formatting-analysis:
+    name: "Check Formatting & Analyze"
+    runs-on: ubuntu-22.04
 
-  #   steps:
-  #     - name: Checkout repo
-  #       uses: actions/checkout@v4
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-  #     - name: Setup Flutter
-  #       uses: subosito/flutter-action@v2
-  #       with:
-  #         flutter-version: ${{ env.FLUTTER_VERSION }}
-  #         cache: true
-  #         cache-path: ${{ runner.tool_cache }}/flutter/linux
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          cache-path: ${{ runner.tool_cache }}/flutter/linux
 
-  #     - name: Install dependencies
-  #       run: flutter pub get
+      - name: Install dependencies
+        run: flutter pub get
 
-  #     - name: Verify formatting
-  #       run: dart format --output=none --set-exit-if-changed lib/* test/*
+      # - name: Verify formatting
+      #   run: dart format --output=none --set-exit-if-changed lib/* test/*
 
-  #     - name: Generate mocks
-  #       run: dart run build_runner build
+      # - name: Generate mocks
+      #   run: dart run build_runner build
 
-  #     - name: Verify import sorting
-  #       run: dart run import_sorter:main --exit-if-changed
+      # - name: Verify import sorting
+      #   run: dart run import_sorter:main --exit-if-changed
 
-  #     - name: Analyze project source
-  #       run: flutter analyze --fatal-infos
+      # - name: Analyze project source
+      #   run: flutter analyze --fatal-infos
 
   # test:
   #   name: "Run Tests"
