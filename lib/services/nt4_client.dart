@@ -15,6 +15,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:elastic_dashboard/services/log.dart';
 import 'package:elastic_dashboard/services/nt4_type.dart';
 import 'package:elastic_dashboard/services/struct_schemas/nt_struct.dart';
+import 'package:elastic_dashboard/services/subscription_retry_strategy.dart';
 
 class NT4Subscription extends ValueNotifier<Object?> {
   final String topic;
@@ -24,13 +25,22 @@ class NT4Subscription extends ValueNotifier<Object?> {
   Object? currentValue;
   int timestamp = 0;
 
+  // Retry metadata for this subscription
+  late SubscriptionRetryMetadata retryMetadata;
+
   final List<Function(Object?, int)> _listeners = [];
 
   NT4Subscription({
     required this.topic,
     this.options = const NT4SubscriptionOptions(),
     this.uid = -1,
-  }) : super(null);
+  }) : super(null) {
+    retryMetadata = SubscriptionRetryMetadata(topic: topic);
+    // Set initial retry interval based on topic pattern
+    final strategy =
+        SubscriptionRetryStrategies.getStrategyForTopic(topic);
+    retryMetadata.retryInterval = strategy.minRetryInterval;
+  }
 
   @override
   String toString() =>
@@ -96,6 +106,11 @@ class NT4Subscription extends ValueNotifier<Object?> {
     logger.trace(
       'Updating value for subscription: $this - Value: $value, Time: $timestamp',
     );
+
+    // Reset retry metadata when we get data
+    if (value != null && currentValue == null) {
+      retryMetadata.resetOnSuccess();
+    }
 
     if (options.structMeta != null &&
         value is List<int> &&
@@ -327,6 +342,10 @@ class NT4Client {
   static const int _pingTimeoutMsV40 = 5000;
   static const int _pingTimeoutMsV41 = 1000;
 
+  // Connection attempt backoff settings
+  static const int _initialConnectionDelayMs = 500;
+  static const int _maxConnectionDelayMs = 5000;
+
   String serverBaseAddress;
   final VoidCallback? onConnect;
   final VoidCallback? onDisconnect;
@@ -353,6 +372,7 @@ class NT4Client {
   StreamSubscription? _rttWebsocketListener;
 
   Timer? _connectionTimer;
+  Timer? _subscriptionRetryTimer;
 
   Timer? _pingTimer;
   Timer? _pongTimer;
@@ -362,6 +382,10 @@ class NT4Client {
 
   bool _serverConnectionActive = false;
   bool _rttConnectionActive = false;
+
+  // Exponential backoff tracking for connection attempts
+  int _connectionDelayMs = _initialConnectionDelayMs;
+  int _consecutiveConnectionFailures = 0;
 
   bool get mainWebsocketActive =>
       _mainWebsocket != null && _mainWebsocket!.closeCode == null;
@@ -388,17 +412,37 @@ class NT4Client {
   }) {
     Future.delayed(const Duration(seconds: 1, milliseconds: 500), () {
       _connect();
+      _rttConnect();
 
-      _connectionTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      // Use exponential backoff instead of fixed interval
+      _scheduleNextConnectionAttempt();
+      
+      // Start subscription retry timer to retry failed subscriptions
+      _subscriptionRetryTimer =
+          Timer.periodic(const Duration(milliseconds: 500), (_) {
+        _retryFailedSubscriptions();
+      });
+    });
+  }
+
+  /// Schedule the next connection attempt with exponential backoff
+  void _scheduleNextConnectionAttempt() {
+    _connectionTimer?.cancel();
+    _connectionTimer = Timer(Duration(milliseconds: _connectionDelayMs), () {
+      if (_attemptConnection && !mainWebsocketActive) {
         _connect();
         _rttConnect();
-      });
+      }
+      if (_attemptConnection) {
+        _scheduleNextConnectionAttempt();
+      }
     });
   }
 
   @visibleForTesting
   void cancelConnectionTimer() {
     _connectionTimer?.cancel();
+    _subscriptionRetryTimer?.cancel();
   }
 
   Future<void> setServerBaseAddreess(String serverBaseAddress) async {
@@ -410,7 +454,18 @@ class NT4Client {
     // on existing connections
     _attemptingNTConnection = false;
     _attemptingRTTConnection = false;
-    Future.delayed(const Duration(milliseconds: 100), _connect);
+    
+    // Reset connection backoff when changing IP
+    _consecutiveConnectionFailures = 0;
+    _connectionDelayMs = _initialConnectionDelayMs;
+    
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _connect();
+      _rttConnect();
+      if (_attemptConnection) {
+        _scheduleNextConnectionAttempt();
+      }
+    });
   }
 
   Stream<double> latencyStream() async* {
@@ -701,14 +756,21 @@ class NT4Client {
       logger.trace('Awaiting connection ready');
       await connectionAttempt.ready;
     } catch (e) {
-      // Failed to connect... try again
+      // Failed to connect... apply exponential backoff
 
       // When changing IP addresses we ignore any current connection attempts
       // since the handshake can take a long time, this will avoid logging information
       // that is from an old connection attempt
       if (mainServerAddr.contains(serverBaseAddress)) {
+        _consecutiveConnectionFailures++;
+        _connectionDelayMs = ((_initialConnectionDelayMs *
+                (1 << _consecutiveConnectionFailures.clamp(0, 8)))
+            .clamp(0, _maxConnectionDelayMs)
+            .toInt());
+
         logger.info(
-          'Failed to connect to network tables, attempting to reconnect in 500 ms',
+          'Failed to connect to network tables (attempt ${_consecutiveConnectionFailures}), '
+          'attempting to reconnect in ${_connectionDelayMs}ms',
         );
 
         _attemptingNTConnection = false;
@@ -732,6 +794,10 @@ class NT4Client {
 
     _mainWebsocket = connectionAttempt;
     _attemptingNTConnection = false;
+
+    // Connection succeeded, reset backoff counters
+    _consecutiveConnectionFailures = 0;
+    _connectionDelayMs = _initialConnectionDelayMs;
 
     _pingTimer?.cancel();
     _pongTimer?.cancel();
@@ -788,9 +854,8 @@ class NT4Client {
       _wsSetProperties(topic);
     }
 
-    for (NT4Subscription sub in _subscriptions.values) {
-      _wsSubscribe(sub);
-    }
+    // Resend subscriptions with staggering to avoid overwhelming the robot
+    _resendSubscriptionsStaggered();
   }
 
   Future<void> _rttConnect() async {
@@ -894,6 +959,56 @@ class NT4Client {
     _serverConnectionActive = true;
 
     onConnect?.call();
+  }
+
+  /// Resend subscriptions to the server with staggering to avoid overwhelming the robot.
+  /// Subscriptions are sent with a 50ms delay between each to reduce peak network load.
+  void _resendSubscriptionsStaggered() {
+    const Duration staggerDelay = Duration(milliseconds: 50);
+    int index = 0;
+
+    for (NT4Subscription sub in _subscriptions.values) {
+      Future.delayed(staggerDelay * index, () {
+        if (mainWebsocketActive) {
+          _wsSubscribe(sub);
+        }
+      });
+      index++;
+    }
+  }
+
+  /// Retry subscriptions that haven't received data yet.
+  /// Uses topic-specific retry intervals to avoid hammering slow-to-startup topics like cameras.
+  void _retryFailedSubscriptions() {
+    if (!mainWebsocketActive) {
+      return;
+    }
+
+    for (NT4Subscription sub in _subscriptions.values) {
+      // Only retry if no data received yet
+      if (sub.currentValue == null) {
+        final strategy =
+            SubscriptionRetryStrategies.getStrategyForTopic(sub.topic);
+
+        // Check if this subscription should be retried
+        if (strategy.shouldRetry(sub.retryMetadata)) {
+          _wsSubscribe(sub);
+          sub.retryMetadata.recordAttempt();
+
+          // Update retry interval with exponential backoff per topic
+          sub.retryMetadata.updateRetryIntervalOnFailure(
+            strategy.minRetryInterval,
+            strategy.maxRetryInterval,
+          );
+
+          logger.trace(
+            'Retrying subscription for topic "${sub.topic}" '
+            '(attempt ${sub.retryMetadata.subscriptionFailureCount}, '
+            'next retry in ${sub.retryMetadata.retryInterval.inSeconds}s)',
+          );
+        }
+      }
+    }
   }
 
   Future<void> _rttOnClose() async {

@@ -7,6 +7,7 @@ import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:elastic_dashboard/services/nt4_type.dart';
 import 'package:elastic_dashboard/services/nt_connection.dart';
 import 'package:elastic_dashboard/services/settings.dart';
+import 'package:elastic_dashboard/services/subscription_period_config.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi_topic/combo_box_chooser.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi_topic/split_button_chooser.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/boolean_box.dart';
@@ -52,7 +53,7 @@ sealed class NTWidgetModel extends ChangeNotifier {
     this.period =
         period ??
         preferences.getDouble(PrefKeys.defaultPeriod) ??
-        Defaults.defaultPeriod;
+        SubscriptionPeriodDefaults.getPeriodForTopic(topic);
   }
 
   NTWidgetModel.fromJson({
@@ -65,7 +66,7 @@ sealed class NTWidgetModel extends ChangeNotifier {
     _period =
         tryCast(jsonData['period']) ??
         preferences.getDouble(PrefKeys.defaultPeriod) ??
-        Defaults.defaultPeriod;
+        SubscriptionPeriodDefaults.getPeriodForTopic(_topic);
   }
 
   @mustCallSuper
